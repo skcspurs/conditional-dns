@@ -1,1 +1,11 @@
-/lib/systemd/system/conditional-dns.service
+[Unit]
+Description=Conditional DNS Query Service
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/python3 /usr/local/bin/conditional-dns.py --port 53 --udp
+
+[Install]
+WantedBy=multi-user.target
