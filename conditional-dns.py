@@ -10,6 +10,7 @@ import traceback
 import struct
 from dns import reversename
 import configparser
+import logging
 
 try:
     import socketserver
@@ -27,11 +28,19 @@ except ImportError:
     print("sudo pip install dnslib dnspython netaddr netifaces")
     sys.exit(2)
 
-
 class DomainName(str):
     def __getattr__(self, item):
         return DomainName(item + '.' + self)
 
+
+# Configure request logging
+logger = logging.getLogger('conditional-dns')
+logger.setLevel(logging.INFO)
+fh = logging.FileHandler('/var/log/conditional-dns.log')
+fh.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 # Create the DNS resolvers globally so it's not created for each query
 opendnsRes = Resolver()
@@ -72,12 +81,14 @@ def dns_response(data):
         odnsResp = opendnsRes.query(qn)
         odnsAns = odnsResp[0].address
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
+        logger.info('MGMT ' + qn)
 
     # If query is whitelisted, return Unlocator lookup
     elif any([ x in qn for x in whitelist ]):
         unlocResp = unlocatorRes.query(qn)
         unlocAns = unlocResp[0].address
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(unlocAns),ttl=5*60))
+        logger.info('WHITELISTED ' + qn)
 
     # Else do OpenDNS and Unlocator lookups
     else:
@@ -92,12 +103,12 @@ def dns_response(data):
         # If OpenDNS would block or request is for opendns.com, return OpenDNS response IP
         if IPAddress(odnsAns) in IPNetwork("146.112.61.104/29"):
             reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
+            logger.info('BLOCKED ' + qn)
 
         # Else tell client to use Unlocator
         else:
             reply.add_answer(RR(qn,QTYPE.A,rdata=A(unlocAns),ttl=5*60))
-
-        #print("---- Reply:\n", reply)
+            logger.info('UNLOCATOR ' + qn)
 
     return reply.pack()
 
@@ -112,13 +123,12 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-        #print("\n\n%s request %s (%s %s):" % (self.__class__.__name__[:3], now, self.client_address[0], self.client_address[1]))
         try:
             data = self.get_data()
-            #print(len(data), data)  # repr(data).replace('\\x', '')[1:-1]
             self.send_data(dns_response(data))
-        except Exception:
-            traceback.print_exc(file=sys.stderr)
+        except Exception as e:
+            logger.error("%s request %s (%s %s): %s" % (self.__class__.__name__[:3], now, self.client_address[0], self.client_address[1], data))
+            logger.exception("Error parsing DNS request")
 
 
 class TCPRequestHandler(BaseRequestHandler):

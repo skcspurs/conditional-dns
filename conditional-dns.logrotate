@@ -1,0 +1,9 @@
+/var/log/conditional-dns.log
+{
+    rotate 5
+    daily
+    size 500k
+    missingok
+    notifempty
+    compress
+}
