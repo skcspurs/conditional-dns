@@ -6,4 +6,7 @@
     missingok
     notifempty
     compress
+    postrotate
+    /bin/systemctl restart conditional-dns > /dev/null 2>/dev/null || true
+    endscript
 }
