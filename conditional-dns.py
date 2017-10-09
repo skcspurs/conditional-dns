@@ -54,12 +54,18 @@ for iface in netifaces.interfaces():
     for link in netifaces.ifaddresses(iface)[netifaces.AF_INET]:
         myreversedns.append(str(reversename.from_address(link['addr'])))
 
-# Generate white list of domains not to let OpenDNS block
+# Read config file
 conffile = '/etc/conditional-dns.conf'
 c = configparser.ConfigParser()
 c.read(conffile)
-confWhitelist = c.get('whitelist', 'items')
-whitelist = list(filter(None, [x.strip() for x in confWhitelist.splitlines()]))
+
+# Generate white list of domains not to let OpenDNS block
+confAlwaysOpendns = c.get('alwaysOpendns', 'items')
+alwaysOpendns = list(filter(None, [x.strip() for x in confAlwaysOpendns.splitlines()]))
+
+# Generate white list of domains not to let Unlocate redirect
+confAlwaysUnlocator = c.get('alwaysUnlocator', 'items')
+alwaysUnlocator = list(filter(None, [x.strip() for x in confAlwaysUnlocator.splitlines()]))
 
 def dns_response(data):
     # Parse the request
@@ -83,14 +89,21 @@ def dns_response(data):
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
         logger.info('MGMT ' + qn)
 
-    # If query is whitelisted, return Unlocator lookup
-    elif any([ x in qn for x in whitelist ]):
+    # If query is in always Unlocator list, return Unlocator lookup
+    elif any([ x in qn for x in alwaysUnlocator ]):
         unlocResp = unlocatorRes.query(qn)
         unlocAns = unlocResp[0].address
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(unlocAns),ttl=5*60))
-        logger.info('WHITELISTED ' + qn)
+        logger.info('ALWAYS_UNLOCATOR ' + qn)
 
-    # Else do OpenDNS and Unlocator lookups
+    # If query is in always Opendns list, return Opendns lookup
+    elif any([ x in qn for x in alwaysOpendns ]):
+        odnsResp = opendnsRes.query(qn)
+        odnsAns = odnsResp[0].address
+        reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
+        logger.info('ALWAYS_OPENDNS ' + qn)
+
+    # Else do both OpenDNS and Unlocator lookups
     else:
         # Query OpenDNS
         odnsResp = opendnsRes.query(qn)
@@ -165,8 +178,6 @@ def main():
     # Parse arguments
     args = parser.parse_args()
     if not (args.udp or args.tcp): parser.error("Please select at least one of --udp or --tcp.")
-
-    # Parse whitelist file
 
     print("Starting nameserver...")
 
