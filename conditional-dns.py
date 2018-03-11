@@ -46,7 +46,7 @@ logger.addHandler(fh)
 opendnsRes = Resolver()
 opendnsRes.nameservers = ['208.67.222.123', '208.67.220.123']
 unlocatorRes = Resolver()
-unlocatorRes.nameservers = ['185.37.37.37', '185.37.39.39']
+unlocatorRes.nameservers = ['185.37.39.39', '185.37.37.37']
 
 # Generate a list of this server's possible reverse DNS address
 myreversedns = []
@@ -87,21 +87,21 @@ def dns_response(data):
         odnsResp = opendnsRes.query(qn)
         odnsAns = odnsResp[0].address
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
-        logger.info('MGMT ' + qn)
+        logger.info('MGMT ' + qn + ' (' + odnsAns + ')')
 
     # If query is in always Unlocator list, return Unlocator lookup
     elif any([ x in qn for x in alwaysUnlocator ]):
         unlocResp = unlocatorRes.query(qn)
         unlocAns = unlocResp[0].address
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(unlocAns),ttl=5*60))
-        logger.info('ALWAYS_UNLOCATOR ' + qn)
+        logger.info('ALWAYS_UNLOCATOR ' + qn + ' (' + unlocAns + ')')
 
     # If query is in always Opendns list, return Opendns lookup
     elif any([ x in qn for x in alwaysOpendns ]):
         odnsResp = opendnsRes.query(qn)
         odnsAns = odnsResp[0].address
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
-        logger.info('ALWAYS_OPENDNS ' + qn)
+        logger.info('ALWAYS_OPENDNS ' + qn + ' (' + odnsAns + ')')
 
     # Else do both OpenDNS and Unlocator lookups
     else:
@@ -116,12 +116,12 @@ def dns_response(data):
         # If OpenDNS would block or request is for opendns.com, return OpenDNS response IP
         if IPAddress(odnsAns) in IPNetwork("146.112.61.104/29"):
             reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
-            logger.info('BLOCKED ' + qn)
+            logger.info('BLOCKED ' + qn + ' (' + odnsAns + ')')
 
         # Else tell client to use Unlocator
         else:
             reply.add_answer(RR(qn,QTYPE.A,rdata=A(unlocAns),ttl=5*60))
-            logger.info('UNLOCATOR ' + qn)
+            logger.info('UNLOCATOR ' + qn + ' (' + unlocAns + ')')
 
     return reply.pack()
 
