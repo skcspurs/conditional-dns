@@ -16,3 +16,8 @@ cp -v conditional-dns.py /usr/local/bin
 cp -v conditional-dns.service /lib/systemd/system
 cp -v conditional-dns.logrotate /etc/logrotate.d
 cp -v conditional-dns.conf /etc
+
+# Set to start at boot time and start the service
+systemctl daemon-reload
+systemctl enable conditional-dns
+systemctl start conditional-dns

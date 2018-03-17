@@ -53,7 +53,6 @@ myreversedns = []
 for iface in netifaces.interfaces():
     if netifaces.AF_INET in netifaces.ifaddresses(iface):
         for link in netifaces.ifaddresses(iface)[netifaces.AF_INET]:
-            print(str(reversename.from_address(link['addr'])))
             myreversedns.append(str(reversename.from_address(link['addr'])))
 
 # Read config file
