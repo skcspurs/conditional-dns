@@ -8,7 +8,6 @@ import time
 import threading
 import traceback
 import struct
-from dns import reversename
 import configparser
 import logging
 
@@ -19,6 +18,7 @@ except ImportError:
     sys.exit(2)
 
 try:
+    from dns import reversename
     from dns.resolver import Resolver
     from netaddr import IPNetwork, IPAddress
     from dnslib import *
@@ -51,8 +51,10 @@ unlocatorRes.nameservers = ['185.37.39.39', '185.37.37.37']
 # Generate a list of this server's possible reverse DNS address
 myreversedns = []
 for iface in netifaces.interfaces():
-    for link in netifaces.ifaddresses(iface)[netifaces.AF_INET]:
-        myreversedns.append(str(reversename.from_address(link['addr'])))
+    if netifaces.AF_INET in netifaces.ifaddresses(iface):
+        for link in netifaces.ifaddresses(iface)[netifaces.AF_INET]:
+            print(str(reversename.from_address(link['addr'])))
+            myreversedns.append(str(reversename.from_address(link['addr'])))
 
 # Read config file
 conffile = '/etc/conditional-dns.conf'
