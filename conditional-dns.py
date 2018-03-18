@@ -60,11 +60,16 @@ conffile = '/etc/conditional-dns.conf'
 c = configparser.ConfigParser()
 c.read(conffile)
 
-# Generate white list of domains not to let OpenDNS block
+# Generate list of domains to send to sniproxy
+sniproxyServer = c.get('sniproxy', 'server')
+confSniproxyDomains = c.get('sniproxy', 'items')
+sniproxyDomains = list(filter(None, [x.strip() for x in confSniproxyDomains.splitlines()]))
+
+# Generate list of domains not to let OpenDNS block
 confAlwaysOpendns = c.get('alwaysOpendns', 'items')
 alwaysOpendns = list(filter(None, [x.strip() for x in confAlwaysOpendns.splitlines()]))
 
-# Generate white list of domains not to let Unlocate redirect
+# Generate list of domains not to let Unlocate redirect
 confAlwaysUnlocator = c.get('alwaysUnlocator', 'items')
 alwaysUnlocator = list(filter(None, [x.strip() for x in confAlwaysUnlocator.splitlines()]))
 
@@ -89,6 +94,11 @@ def dns_response(data):
         odnsAns = odnsResp[0].address
         reply.add_answer(RR(qn,QTYPE.A,rdata=A(odnsAns),ttl=5*60))
         logger.info('MGMT ' + qn + ' (' + odnsAns + ')')
+
+    # If query is for sniproxy, return sniproxy server IP
+    elif any([ x in qn for x in sniproxyDomains ]):
+        reply.add_answer(RR(qn,QTYPE.A,rdata=A(sniproxyServer),ttl=5*60))
+        logger.info('SNIPROXY ' + qn + ' (' + sniproxyServer + ')')
 
     # If query is in always Unlocator list, return Unlocator lookup
     elif any([ x in qn for x in alwaysUnlocator ]):
