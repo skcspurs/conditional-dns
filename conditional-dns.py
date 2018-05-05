@@ -117,11 +117,11 @@ def dns_response(data):
     # Else do both OpenDNS and Unlocator lookups
     else:
         # Query OpenDNS
-        odnsResp = opendnsRes.query(qn)
+        odnsResp = opendnsRes.query(qn, raise_on_no_answer=False)
         odnsAns = odnsResp[0].address
         
         # Query Unlocator
-        unlocResp = unlocatorRes.query(qn)
+        unlocResp = unlocatorRes.query(qn, raise_on_no_answer=False)
         unlocAns = unlocResp[0].address
         
         # If OpenDNS would block or request is for opendns.com, return OpenDNS response IP
@@ -158,7 +158,7 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
 class TCPRequestHandler(BaseRequestHandler):
 
     def get_data(self):
-        data = self.request.recv(8192).strip()
+        data = self.request.recv(8192)
         sz = struct.unpack('>H', data[:2])[0]
         if sz < len(data) - 2:
             raise Exception("Wrong size of TCP packet")
@@ -174,7 +174,7 @@ class TCPRequestHandler(BaseRequestHandler):
 class UDPRequestHandler(BaseRequestHandler):
 
     def get_data(self):
-        return self.request[0].strip()
+        return self.request[0]
 
     def send_data(self, data):
         return self.request[1].sendto(data, self.client_address)
